@@ -11,17 +11,7 @@ import PageHeader from '../components/layout/PageHeader';
 import { useDebounce } from 'react-use';
 import { updateSearchCount } from '../appwrite';
 import { ALL_GENRES, MOVIE_CATEGORY_ROWS, MOVIE_GENRES, TV_CATEGORY_ROWS, TV_GENRES } from '../utils/categories';
-
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-
-const API_OPTIONS = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`,
-  },
-};
+import { tmdbFetch } from '../utils/tmdb';
 
 const getFilterGenres = (mediaType) => {
   if (mediaType === 'tv') return TV_GENRES;
@@ -112,60 +102,54 @@ const BrowsePage = () => {
     try {
       let data;
 
+      // Helper: pull results array out of an allSettled entry (graceful on failure).
+      // tmdbFetch throws on non-ok, so a rejected promise means that single page
+      // failed — we keep whatever other pages returned instead of nuking the whole view.
+      const resultsFrom = (s) => (s.status === 'fulfilled' ? s.value.results || [] : []);
+
       if (debouncedSearch) {
         // Search — no date filtering needed
-        const endpoint = `${API_BASE_URL}/search/multi?query=${encodeURIComponent(debouncedSearch)}&page=${effectivePage}`;
-        const response = await fetch(endpoint, API_OPTIONS);
-        if (!response.ok) throw new Error('Failed to fetch content');
-        data = await response.json();
+        data = await tmdbFetch('/search/multi', {
+          query: debouncedSearch,
+          page: effectivePage,
+        });
       } else if (mediaTypeParam === '') {
         // "All" — fetch movies AND TV shows simultaneously, then merge
-        let movieBaseEndpoint = `${API_BASE_URL}/discover/movie?sort_by=${sortParam}&primary_release_date.lte=${today}`;
-        let tvBaseEndpoint = `${API_BASE_URL}/discover/tv?sort_by=${sortParam}&first_air_date.lte=${today}`;
-        if (genreParam) {
-          movieBaseEndpoint += `&with_genres=${genreParam}`;
-          tvBaseEndpoint += `&with_genres=${genreParam}`;
-        }
-        if (yearParam) {
-          movieBaseEndpoint += `&primary_release_year=${yearParam}`;
-          tvBaseEndpoint += `&first_air_date_year=${yearParam}`;
-        }
+        const movieParams = {
+          sort_by: sortParam,
+          'primary_release_date.lte': today,
+          ...(genreParam ? { with_genres: genreParam } : {}),
+          ...(yearParam ? { primary_release_year: yearParam } : {}),
+        };
+        const tvParams = {
+          sort_by: sortParam,
+          'first_air_date.lte': today,
+          ...(genreParam ? { with_genres: genreParam } : {}),
+          ...(yearParam ? { first_air_date_year: yearParam } : {}),
+        };
 
         if (genreParam) {
           // Fetch multiple pages (up to 80 items) for genre browsing
           const pagesToFetch = 4;
-          const [movieResponses, tvResponses] = await Promise.all([
-            Promise.all(
+          const [movieSettled, tvSettled] = await Promise.all([
+            Promise.allSettled(
               Array.from({ length: pagesToFetch }, (_, i) =>
-                fetch(`${movieBaseEndpoint}&page=${i + 1}`, API_OPTIONS)
+                tmdbFetch('/discover/movie', { ...movieParams, page: i + 1 })
               )
             ),
-            Promise.all(
+            Promise.allSettled(
               Array.from({ length: pagesToFetch }, (_, i) =>
-                fetch(`${tvBaseEndpoint}&page=${i + 1}`, API_OPTIONS)
+                tmdbFetch('/discover/tv', { ...tvParams, page: i + 1 })
               )
             ),
           ]);
 
-          const movieResults = [];
-          for (const res of movieResponses) {
-            if (res.ok) {
-              const json = await res.json();
-              movieResults.push(
-                ...(json.results || []).map((item) => ({ ...item, media_type: 'movie' }))
-              );
-            }
-          }
-
-          const tvResults = [];
-          for (const res of tvResponses) {
-            if (res.ok) {
-              const json = await res.json();
-              tvResults.push(
-                ...(json.results || []).map((item) => ({ ...item, media_type: 'tv' }))
-              );
-            }
-          }
+          const movieResults = movieSettled
+            .flatMap(resultsFrom)
+            .map((item) => ({ ...item, media_type: 'movie' }));
+          const tvResults = tvSettled
+            .flatMap(resultsFrom)
+            .map((item) => ({ ...item, media_type: 'tv' }));
 
           // Merge, deduplicate by ID, and sort by popularity
           const seen = new Set();
@@ -179,15 +163,19 @@ const BrowsePage = () => {
           data = { results: merged, total_pages: 1 };
         } else {
           // Single-page fetch for paginated browsing
-          const [movieRes, tvRes] = await Promise.all([
-            fetch(`${movieBaseEndpoint}&page=${effectivePage}`, API_OPTIONS),
-            fetch(`${tvBaseEndpoint}&page=${effectivePage}`, API_OPTIONS),
+          const [movieSettled, tvSettled] = await Promise.allSettled([
+            tmdbFetch('/discover/movie', { ...movieParams, page: effectivePage }),
+            tmdbFetch('/discover/tv', { ...tvParams, page: effectivePage }),
           ]);
 
-          if (!movieRes.ok && !tvRes.ok) throw new Error('Failed to fetch content');
+          if (movieSettled.status !== 'fulfilled' && tvSettled.status !== 'fulfilled') {
+            throw new Error('Failed to fetch content');
+          }
 
-          const movieData = movieRes.ok ? await movieRes.json() : { results: [] };
-          const tvData = tvRes.ok ? await tvRes.json() : { results: [] };
+          const movieData =
+            movieSettled.status === 'fulfilled' ? movieSettled.value : { results: [] };
+          const tvData =
+            tvSettled.status === 'fulfilled' ? tvSettled.value : { results: [] };
 
           // Tag each result with media_type since discover endpoints don't include it
           const taggedMovies = (movieData.results || []).map((item) => ({
@@ -213,70 +201,70 @@ const BrowsePage = () => {
           };
         }
       } else if (mediaTypeParam === 'tv') {
-        let baseEndpoint = `${API_BASE_URL}/discover/tv?sort_by=${sortParam}&first_air_date.lte=${today}`;
-        if (genreParam) baseEndpoint += `&with_genres=${genreParam}`;
-        if (yearParam) baseEndpoint += `&first_air_date_year=${yearParam}`;
+        const baseParams = {
+          sort_by: sortParam,
+          'first_air_date.lte': today,
+          ...(genreParam ? { with_genres: genreParam } : {}),
+          ...(yearParam ? { first_air_date_year: yearParam } : {}),
+        };
 
         if (genreParam) {
           // Fetch multiple pages (up to 80 items) for genre browsing
           const pagesToFetch = 4;
-          const responses = await Promise.all(
+          const settled = await Promise.allSettled(
             Array.from({ length: pagesToFetch }, (_, i) =>
-              fetch(`${baseEndpoint}&page=${i + 1}`, API_OPTIONS)
+              tmdbFetch('/discover/tv', { ...baseParams, page: i + 1 })
             )
           );
 
           const allResults = [];
-          for (const res of responses) {
-            if (res.ok) {
-              const json = await res.json();
-              const existingIds = new Set(allResults.map((r) => r.id));
-              const newItems = (json.results || []).filter(
-                (item) => !existingIds.has(item.id)
-              );
-              allResults.push(...newItems);
+          const existingIds = new Set();
+          for (const s of settled) {
+            for (const item of resultsFrom(s)) {
+              if (!existingIds.has(item.id)) {
+                allResults.push(item);
+                existingIds.add(item.id);
+              }
             }
           }
 
           data = { results: allResults, total_pages: 1 };
         } else {
-          const response = await fetch(`${baseEndpoint}&page=${effectivePage}`, API_OPTIONS);
-          if (!response.ok) throw new Error('Failed to fetch content');
-          data = await response.json();
+          data = await tmdbFetch('/discover/tv', { ...baseParams, page: effectivePage });
         }
       } else {
         // Movie only (includes 'movie' and any unknown mediaTypeParam)
-        let baseEndpoint = `${API_BASE_URL}/discover/movie?sort_by=${sortParam}&primary_release_date.lte=${today}`;
-        if (genreParam) baseEndpoint += `&with_genres=${genreParam}`;
-        if (yearParam) baseEndpoint += `&primary_release_year=${yearParam}`;
-        if (mediaTypeParam === 'movie') baseEndpoint += `&with_original_language=en`;
+        const baseParams = {
+          sort_by: sortParam,
+          'primary_release_date.lte': today,
+          ...(genreParam ? { with_genres: genreParam } : {}),
+          ...(yearParam ? { primary_release_year: yearParam } : {}),
+          ...(mediaTypeParam === 'movie' ? { with_original_language: 'en' } : {}),
+        };
 
         if (genreParam) {
           // Fetch multiple pages (up to 80 items) for genre browsing
           const pagesToFetch = 4;
-          const responses = await Promise.all(
+          const settled = await Promise.allSettled(
             Array.from({ length: pagesToFetch }, (_, i) =>
-              fetch(`${baseEndpoint}&page=${i + 1}`, API_OPTIONS)
+              tmdbFetch('/discover/movie', { ...baseParams, page: i + 1 })
             )
           );
 
           const allResults = [];
-          for (const res of responses) {
-            if (res.ok) {
-              const json = await res.json();
-              const existingIds = new Set(allResults.map((r) => r.id));
-              const newItems = (json.results || []).filter(
-                (item) => !existingIds.has(item.id)
-              );
-              allResults.push(...newItems);
+          const existingIds = new Set();
+          for (const s of settled) {
+            for (const item of resultsFrom(s)) {
+              if (!existingIds.has(item.id)) {
+                allResults.push(item);
+                existingIds.add(item.id);
+              }
             }
           }
 
           data = { results: allResults, total_pages: 1 };
         } else {
-          const response = await fetch(`${baseEndpoint}&page=${effectivePage}`, API_OPTIONS);
-          if (!response.ok) throw new Error('Failed to fetch content');
-          data = await response.json();
+          data = await tmdbFetch('/discover/movie', { ...baseParams, page: effectivePage });
         }
       }
 
@@ -294,12 +282,29 @@ const BrowsePage = () => {
           let upcomingData = [];
           // Use discover endpoint with primary_release_date.gte for strict upcoming filtering
           // No vote_count filter — upcoming content may have zero votes
+          const upcomingSettled = await Promise.allSettled([
+            ...(mediaTypeParam === '' || mediaTypeParam === 'movie'
+              ? [tmdbFetch('/discover/movie', {
+                sort_by: 'primary_release_date.asc',
+                page: 1,
+                'primary_release_date.gte': today,
+                with_original_language: 'en',
+              })]
+              : []),
+            ...(mediaTypeParam === '' || mediaTypeParam === 'tv'
+              ? [tmdbFetch('/discover/tv', {
+                sort_by: 'first_air_date.asc',
+                page: 1,
+                'first_air_date.gte': today,
+              })]
+              : []),
+          ]);
+
+          let idx = 0;
           if (mediaTypeParam === '' || mediaTypeParam === 'movie') {
-            const upcomingMovieUrl = `${API_BASE_URL}/discover/movie?sort_by=primary_release_date.asc&page=1&primary_release_date.gte=${today}&with_original_language=en`;
-            const upcomingMovieRes = await fetch(upcomingMovieUrl, API_OPTIONS);
-            if (upcomingMovieRes.ok) {
-              const upcomingMovieData = await upcomingMovieRes.json();
-              const tagged = (upcomingMovieData.results || []).map((item) => ({
+            const s = upcomingSettled[idx++];
+            if (s && s.status === 'fulfilled') {
+              const tagged = (s.value.results || []).map((item) => ({
                 ...item,
                 media_type: 'movie',
               }));
@@ -307,11 +312,9 @@ const BrowsePage = () => {
             }
           }
           if (mediaTypeParam === '' || mediaTypeParam === 'tv') {
-            const upcomingTVUrl = `${API_BASE_URL}/discover/tv?sort_by=first_air_date.asc&page=1&first_air_date.gte=${today}`;
-            const upcomingTVRes = await fetch(upcomingTVUrl, API_OPTIONS);
-            if (upcomingTVRes.ok) {
-              const upcomingTVData = await upcomingTVRes.json();
-              const tagged = (upcomingTVData.results || []).map((item) => ({
+            const s = upcomingSettled[idx++];
+            if (s && s.status === 'fulfilled') {
+              const tagged = (s.value.results || []).map((item) => ({
                 ...item,
                 media_type: 'tv',
               }));
