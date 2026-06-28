@@ -1,4 +1,12 @@
 import { Helmet } from 'react-helmet-async';
+import {
+  SITE_NAME,
+  SITE_TAGLINE,
+  DEFAULT_DESCRIPTION,
+  DEFAULT_KEYWORDS,
+  DEFAULT_IMAGE,
+  absoluteUrl,
+} from '../config/site';
 
 /**
  * SEO Component
@@ -10,12 +18,6 @@ import { Helmet } from 'react-helmet-async';
  *   <SEO title="Movie Title" description="Watch movie online" image="https://..." />
  */
 
-const SITE_NAME = 'CineVault';
-const DEFAULT_DESCRIPTION = 'Watch movies and TV shows online for free. Stream the latest releases in HD quality without signing up. CineVault offers thousands of free movies and TV episodes on demand.';
-const DEFAULT_KEYWORDS = 'movies, tv shows, watch online, free movies, streaming, hd movies, watch free, online cinema, movie streaming, tv episodes, watch tv online, hd streaming, free cinema, movie app';
-const DEFAULT_IMAGE = '/logo.png';
-const BASE_URL = 'https://movie-app-version-2.vercel.app'; // 🔁 Change to your actual domain
-
 const SEO = ({
   title,
   description = DEFAULT_DESCRIPTION,
@@ -25,8 +27,8 @@ const SEO = ({
   publishedTime,
   tags,
 }) => {
-  const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — Watch Free Movies & TV Shows Online`;
-  const fullUrl = url ? `${BASE_URL}${url}` : BASE_URL;
+  const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
+  const fullUrl = absoluteUrl(url);
 
   return (
     <Helmet>
@@ -41,14 +43,14 @@ const SEO = ({
       <meta property="og:url" content={fullUrl} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
-      <meta property="og:image" content={image?.startsWith('http') ? image : `${BASE_URL}${image}`} />
+      <meta property="og:image" content={image?.startsWith('http') ? image : absoluteUrl(image)} />
       <meta property="og:site_name" content={SITE_NAME} />
 
       {/* Twitter */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image?.startsWith('http') ? image : `${BASE_URL}${image}`} />
+      <meta name="twitter:image" content={image?.startsWith('http') ? image : absoluteUrl(image)} />
 
       {/* Article specific */}
       {publishedTime && <meta property="article:published_time" content={publishedTime} />}

@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <link rel="robots" type="text/plain" href="/robots.txt" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#030014" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -12,6 +13,18 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="format-detection" content="telephone=no" />
   <link rel="apple-touch-icon" href="/logo.png" />
+
+  <!-- ─── Google Analytics (gtag.js) ─────────────────────────── -->
+  <!-- Create a GA4 property at https://analytics.google.com, then replace -->
+  <!-- G-XXXXXXXXXX below with your real Measurement ID. Nothing tracks until -->
+  <!-- you do this — the placeholder is intentionally harmless. -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX', { anonymize_ip: true });
+  </script>
 
   <!-- Preconnect to critical origins -->
   <link rel="preconnect" href="https://api.themoviedb.org" />

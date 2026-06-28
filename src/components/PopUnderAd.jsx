@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { AD_CONFIG } from '../config/site';
 
 /**
  * PopUnderAd Component
@@ -7,16 +8,15 @@ import { useEffect } from 'react';
  * This is how hdmovie2 makes most of their ad revenue.
  * - Fires ONLY ONCE per session (tracked in sessionStorage)
  * - Opens in the background so user doesn't notice immediately
- * - Replace `AD_URL` with your actual PropellerAds/PopAds pop-under URL
  *
- * ⚠️ CURRENTLY DISABLED — replace POPUNDER_URL below with a real ad network URL to enable.
+ * ⚠️ CONFIGURATION:
+ * The pop-under URL lives in src/config/site.js -> AD_CONFIG.POPUNDER_URL.
  * Get one from: https://propellerads.com or https://popads.net
+ * Until POPUNDER_URL is set, this component is a no-op.
  */
 
 const POPUNDER_KEY = 'cinevault_popunder_shown';
-
-// 🔁 REPLACE THIS with your actual popunder URL from PropellerAds/PopAds
-const POPUNDER_URL = ''; // ← Set this to your real ad URL to enable
+const POPUNDER_URL = AD_CONFIG.POPUNDER_URL || '';
 
 const PopUnderAd = () => {
   useEffect(() => {
@@ -50,7 +50,7 @@ const PopUnderAd = () => {
  */
 export function triggerPopUnder() {
   if (!POPUNDER_URL) {
-    console.log('🔕 PopUnderAd disabled — set POPUNDER_URL in PopUnderAd.jsx');
+    console.log('PopUnderAd disabled — set AD_CONFIG.POPUNDER_URL in src/config/site.js');
     return;
   }
 

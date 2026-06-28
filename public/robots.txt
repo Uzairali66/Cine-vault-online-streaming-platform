@@ -1,0 +1,11 @@
+# CineVault — robots.txt
+# Allows all search engines to crawl the entire site.
+
+User-agent: *
+Allow: /
+
+# Block API serverless functions from being indexed
+Disallow: /api/
+
+# Point search engines to the sitemap
+Sitemap: https://movie-app-version-2.vercel.app/sitemap.xml

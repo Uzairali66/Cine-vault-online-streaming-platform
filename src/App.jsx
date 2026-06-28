@@ -18,6 +18,7 @@ const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage'));
 const TVDetailPage = lazy(() => import('./pages/TVDetailPage'));
 const WatchPage = lazy(() => import('./pages/WatchPage'));
 const GenrePage = lazy(() => import('./pages/GenrePage'));
+const YearPage = lazy(() => import('./pages/YearPage'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
@@ -72,6 +73,7 @@ function App() {
                 <Route path="/movie/:id" element={<MovieDetailPage />} />
                 <Route path="/tv/:id" element={<TVDetailPage />} />
                 <Route path="/genre/:genreId" element={<GenrePage />} />
+                <Route path="/year/:year" element={<YearPage />} />
                 <Route path="/watch/tmdb/:id" element={<WatchPage />} />
                 <Route path="/watch/appwrite/:documentId" element={<WatchPage />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />

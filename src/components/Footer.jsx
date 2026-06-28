@@ -39,6 +39,25 @@ const Footer = () => {
         </p>
       </div>
 
+      {/* Browse by Year — SEO + internal linking */}
+      <div className="max-w-7xl mx-auto mt-6 pt-6 border-t border-light-100/5">
+        <p className="text-gray-100/60 text-xs mb-2 text-center md:text-left">Browse by Year</p>
+        <div className="flex flex-wrap justify-center md:justify-start gap-2">
+          {Array.from({ length: 10 }).map((_, i) => {
+            const y = new Date().getFullYear() - i;
+            return (
+              <Link
+                key={y}
+                to={`/year/${y}`}
+                className="px-3 py-1 rounded-full text-xs bg-gray-800 text-gray-100 hover:text-white hover:bg-gray-700 transition-colors"
+              >
+                {y}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Disclaimer */}
       <div className="max-w-7xl mx-auto mt-6 pt-6 border-t border-light-100/5">
         <p className="text-gray-100/60 text-xs text-center leading-relaxed">
