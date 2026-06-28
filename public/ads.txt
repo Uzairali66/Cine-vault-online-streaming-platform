@@ -1,0 +1,12 @@
+# CineVault - Ads.txt
+# Placeholder for ad network verification.
+# When you register with an ad network (Google AdSense, Media.net, etc.),
+# replace the line below with the verification record they provide.
+
+# Example for Google AdSense:
+# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+
+# Example for Media.net:
+# media.net, 000000000000000000, DIRECT
+
+# This file will be updated once ad network verification is complete.
