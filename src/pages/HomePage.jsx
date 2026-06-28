@@ -12,17 +12,7 @@ import { updateSearchCount } from '../appwrite';
 import { fetchKoreanContent } from '../utils/languages';
 import { ALL_GENRES, MOVIE_CATEGORY_ROWS, MOVIE_GENRES, TV_CATEGORY_ROWS, TV_GENRES } from '../utils/categories';
 import { useWatchHistory } from '../hooks/useWatchHistory';
-
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-
-const API_OPTIONS = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`
-  }
-}
+import { tmdbFetch } from '../utils/tmdb';
 
 const getActiveGenres = (mediaType) => {
   if (mediaType === 'tv') return TV_GENRES;
@@ -109,41 +99,32 @@ const HomePage = () => {
 
       if (query) {
         // Search mode
-        let endpoint;
+        const searchParams = { query, page };
         if (mediaType === 'all') {
-          endpoint = `${API_BASE_URL}/search/multi?query=${encodeURIComponent(query)}&page=${page}`;
+          data = await tmdbFetch('/search/multi', searchParams);
         } else {
-          endpoint = `${API_BASE_URL}/search/${mediaType}?query=${encodeURIComponent(query)}&page=${page}`;
           if (selectedYear) {
-            const yearParam = mediaType === 'tv' ? 'first_air_date_year' : 'year';
-            endpoint += `&${yearParam}=${selectedYear}`;
+            searchParams[mediaType === 'tv' ? 'first_air_date_year' : 'year'] = selectedYear;
           }
+          data = await tmdbFetch(`/search/${mediaType}`, searchParams);
         }
-        const response = await fetch(endpoint, API_OPTIONS);
-        if (!response.ok) throw new Error('Failed to fetch movies');
-        data = await response.json();
       } else if (mediaType === 'all') {
         // Discover mode — fetch movies AND TV shows simultaneously, then merge
-        let movieEndpoint = `${API_BASE_URL}/discover/movie?sort_by=${selectedSort}&page=${page}`;
-        let tvEndpoint = `${API_BASE_URL}/discover/tv?sort_by=${selectedSort}&page=${page}`;
+        const movieParams = { sort_by: selectedSort, page };
+        const tvParams = { sort_by: selectedSort, page };
         if (selectedGenre) {
-          movieEndpoint += `&with_genres=${selectedGenre}`;
-          tvEndpoint += `&with_genres=${selectedGenre}`;
+          movieParams.with_genres = selectedGenre;
+          tvParams.with_genres = selectedGenre;
         }
         if (selectedYear) {
-          movieEndpoint += `&primary_release_year=${selectedYear}`;
-          tvEndpoint += `&first_air_date_year=${selectedYear}`;
+          movieParams.primary_release_year = selectedYear;
+          tvParams.first_air_date_year = selectedYear;
         }
 
-        const [movieRes, tvRes] = await Promise.all([
-          fetch(movieEndpoint, API_OPTIONS),
-          fetch(tvEndpoint, API_OPTIONS),
+        const [movieData, tvData] = await Promise.all([
+          tmdbFetch('/discover/movie', movieParams),
+          tmdbFetch('/discover/tv', tvParams),
         ]);
-
-        if (!movieRes.ok && !tvRes.ok) throw new Error('Failed to fetch movies');
-
-        const movieData = movieRes.ok ? await movieRes.json() : { results: [], total_pages: 1 };
-        const tvData = tvRes.ok ? await tvRes.json() : { results: [], total_pages: 1 };
 
         // Tag each result with media_type since discover endpoints don't include it
         const taggedMovies = (movieData.results || []).map((item) => ({
@@ -163,14 +144,12 @@ const HomePage = () => {
         };
       } else {
         // Discover mode — single type (movie or tv)
-        let endpoint = `${API_BASE_URL}/discover/${mediaType}?sort_by=${selectedSort}&page=${page}`;
-        if (selectedGenre) endpoint += `&with_genres=${selectedGenre}`;
-        const yearParam = mediaType === 'tv' ? 'first_air_date_year' : 'primary_release_year';
-        if (selectedYear) endpoint += `&${yearParam}=${selectedYear}`;
+        const params = { sort_by: selectedSort, page };
+        if (selectedGenre) params.with_genres = selectedGenre;
+        const yearKey = mediaType === 'tv' ? 'first_air_date_year' : 'primary_release_year';
+        if (selectedYear) params[yearKey] = selectedYear;
 
-        const response = await fetch(endpoint, API_OPTIONS);
-        if (!response.ok) throw new Error('Failed to fetch movies');
-        data = await response.json();
+        data = await tmdbFetch(`/discover/${mediaType}`, params);
       }
 
       if (data.response === 'False') {

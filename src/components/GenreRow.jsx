@@ -1,16 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-
-const API_OPTIONS = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`,
-  },
-};
+import { tmdbFetch } from '../utils/tmdb';
 
 const resolveDateParams = (params = {}) => {
   const today = new Date().toISOString().split('T')[0];
@@ -44,35 +34,25 @@ const GenreRow = ({ genreId, genreName, mediaType = 'movie', endpoint, discoverP
     const fetchRowItems = async () => {
       setIsLoading(true);
       try {
-        const params = new URLSearchParams({ page: '1' });
-
         if (endpoint) {
-          const res = await fetch(`${API_BASE_URL}${endpoint}?${params.toString()}`, API_OPTIONS);
-          if (res.ok) {
-            const data = await res.json();
-            const filtered = (data.results || [])
-              .filter((item) => item.poster_path)
-              .slice(0, 20);
-            setItems(filtered.map((item) => ({ ...item, media_type: mediaType })));
-          }
-          return;
-        }
-
-        const resolvedParams = resolveDateParams(discoverParams);
-        Object.entries({ sort_by: 'popularity.desc', ...resolvedParams }).forEach(([key, value]) => {
-          if (value) params.set(key, value);
-        });
-        if (genreId) params.set('with_genres', genreId);
-        params.set('with_original_language', 'en');
-
-        const res = await fetch(`${API_BASE_URL}/discover/${mediaType}?${params.toString()}`, API_OPTIONS);
-        if (res.ok) {
-          const data = await res.json();
+          const data = await tmdbFetch(endpoint, { page: 1 });
           const filtered = (data.results || [])
             .filter((item) => item.poster_path)
             .slice(0, 20);
           setItems(filtered.map((item) => ({ ...item, media_type: mediaType })));
+          return;
         }
+
+        const resolvedParams = resolveDateParams(discoverParams);
+        const params = { sort_by: 'popularity.desc', ...resolvedParams, with_original_language: 'en' };
+        if (genreId) params.with_genres = genreId;
+        params.page = 1;
+
+        const data = await tmdbFetch(`/discover/${mediaType}`, params);
+        const filtered = (data.results || [])
+          .filter((item) => item.poster_path)
+          .slice(0, 20);
+        setItems(filtered.map((item) => ({ ...item, media_type: mediaType })));
       } catch (err) {
         console.error(`Error fetching ${genreName} ${mediaType}:`, err);
       } finally {

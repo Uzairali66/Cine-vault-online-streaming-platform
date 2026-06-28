@@ -26,6 +26,7 @@ const SEO = ({
   type = 'website',
   publishedTime,
   tags,
+  noIndex = false,
 }) => {
   const fullTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
   const fullUrl = absoluteUrl(url);
@@ -56,7 +57,7 @@ const SEO = ({
       {publishedTime && <meta property="article:published_time" content={publishedTime} />}
 
       {/* Additional meta */}
-      <meta name="robots" content="index, follow" />
+      <meta name="robots" content={noIndex ? 'noindex, nofollow' : 'index, follow'} />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <meta name="theme-color" content="#030014" />
     </Helmet>

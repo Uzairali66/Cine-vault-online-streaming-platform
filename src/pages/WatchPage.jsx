@@ -11,12 +11,8 @@ import PopUnderAd, { triggerPopUnder } from '../components/PopUnderAd';
 import ErrorBoundary from '../components/ErrorBoundary';
 import PageLayout from '../components/layout/PageLayout';
 import BackLink from '../components/layout/BackLink';
+import { tmdbFetch } from '../utils/tmdb';
 
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-const API_OPTIONS = {
-  headers: { accept: 'application/json', Authorization: `Bearer ${API_KEY}` },
-};
 const WatchPage = () => {
   const { id, documentId } = useParams();
   const navigate = useNavigate();
@@ -117,9 +113,8 @@ const WatchPage = () => {
           setError('Movie not found in the library.');
         }
       } else if (id) {
-        const endpoint = mediaType === 'tv' ? `/tv/${id}` : `/movie/${id}`;
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, API_OPTIONS);
-        const data = await res.json();
+        const detailPath = mediaType === 'tv' ? `/tv/${id}` : `/movie/${id}`;
+        const data = await tmdbFetch(detailPath);
 
         if (!data.id) {
           setError(`${mediaType === 'tv' ? 'TV show' : 'Movie'} not found.`);
@@ -132,11 +127,7 @@ const WatchPage = () => {
         // Fetch IMDB ID (required by some embed sources)
         let fetchedImdbId = null;
         try {
-          const externalRes = await fetch(
-            `${API_BASE_URL}/${mediaType === 'tv' ? 'tv' : 'movie'}/${id}/external_ids`,
-            API_OPTIONS
-          );
-          const externalData = await externalRes.json();
+          const externalData = await tmdbFetch(`/${mediaType}/${id}/external_ids`);
           if (externalData.imdb_id) {
             fetchedImdbId = externalData.imdb_id;
             setImdbId(externalData.imdb_id);
@@ -192,11 +183,7 @@ const WatchPage = () => {
     const fetchEpisodes = async () => {
       setIsLoadingEpisodes(true);
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/tv/${id}/season/${selectedSeason}`,
-          API_OPTIONS
-        );
-        const data = await res.json();
+        const data = await tmdbFetch(`/tv/${id}/season/${selectedSeason}`);
         if (data.episodes) {
           setEpisodes(data.episodes);
           setSelectedEpisode(1);

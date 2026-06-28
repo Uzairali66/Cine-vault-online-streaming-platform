@@ -6,8 +6,10 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
   globalIgnores(['dist']),
+
+  // ── Browser app (src/**) ──────────────────────────────────────
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx}'],
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,
@@ -16,6 +18,19 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
       parserOptions: { ecmaFeatures: { jsx: true } },
+    },
+  },
+
+  // ── Node-side files: Vercel serverless fns, Vite config, scripts ─
+  // These run in Node (not the browser), so `process`, `require`,
+  // `Buffer`, `__dirname` are valid globals here.
+  {
+    files: ['api/**/*.{js,cjs}', 'vite.config.js', 'scripts/**/*.{js,cjs}'],
+    extends: [js.configs.recommended],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
     },
   },
 ])

@@ -26,6 +26,7 @@ const DMCAPage = lazy(() => import('./pages/DMCAPage'));
 const DirectWatchPage = lazy(() => import('./pages/DirectWatchPage'));
 const PremiumPage = lazy(() => import('./pages/PremiumPage'));
 const PremiumSuccessPage = lazy(() => import('./pages/PremiumSuccessPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -83,6 +84,8 @@ function App() {
                 <Route path="/dmca" element={<DMCAPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
                 <Route path="/premium/success" element={<PremiumSuccessPage />} />
+                {/* Catch-all 404 — must stay LAST so it doesn't shadow real routes */}
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           </main>

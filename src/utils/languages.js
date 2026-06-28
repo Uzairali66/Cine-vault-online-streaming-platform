@@ -8,11 +8,7 @@
  * - Fetching Korean & other language-specific content from TMDB
  */
 
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-const API_OPTIONS = {
-  headers: { accept: 'application/json', Authorization: `Bearer ${API_KEY}` },
-};
+import { tmdbFetch } from './tmdb';
 
 // ─── Language Registry ──────────────────────────────────────────
 // ISO 639-1 → { name, flag, iso_3166_1 (country) }
@@ -148,12 +144,7 @@ export function analyzeTranslations(translations, originalLang = null) {
  */
 export async function fetchTranslations(tmdbId, mediaType = 'movie') {
   try {
-    const res = await fetch(
-      `${API_BASE_URL}/${mediaType}/${tmdbId}/translations`,
-      API_OPTIONS
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = await tmdbFetch(`/${mediaType}/${tmdbId}/translations`);
     return data.translations || [];
   } catch {
     return [];
@@ -188,17 +179,15 @@ export async function fetchContentByLanguage(
   extraParams = {}
 ) {
   try {
-    let endpoint = `${API_BASE_URL}/discover/${mediaType}?with_original_language=${langCode}&page=${page}&sort_by=popularity.desc`;
-    if (extraParams.with_genres) {
-      endpoint += `&with_genres=${extraParams.with_genres}`;
-    }
-    if (extraParams['vote_count.gte']) {
-      endpoint += `&vote_count.gte=${extraParams['vote_count.gte']}`;
-    }
+    const params = {
+      with_original_language: langCode,
+      page,
+      sort_by: 'popularity.desc',
+    };
+    if (extraParams.with_genres) params.with_genres = extraParams.with_genres;
+    if (extraParams['vote_count.gte']) params['vote_count.gte'] = extraParams['vote_count.gte'];
 
-    const res = await fetch(endpoint, API_OPTIONS);
-    if (!res.ok) return { results: [], total_pages: 0 };
-    const data = await res.json();
+    const data = await tmdbFetch(`/discover/${mediaType}`, params);
     return {
       results: (data.results || []).map((item) => ({
         ...item,

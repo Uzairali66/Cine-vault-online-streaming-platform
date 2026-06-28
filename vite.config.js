@@ -79,8 +79,9 @@ export default defineConfig({
     },
     // Enable CSS code splitting
     cssCodeSplit: true,
-    // Enable sourcemaps temporarily for debugging
-    sourcemap: true,
+    // Sourcemaps OFF in production — exposes source code structure & comments.
+    // Re-enable locally with `VITE_DEBUG_SOURCEMAPS=true` if you need to debug.
+    sourcemap: !!process.env.VITE_DEBUG_SOURCEMAPS,
     // Chunk size warning limit (raised for modern apps)
     chunkSizeWarningLimit: 300,
   },

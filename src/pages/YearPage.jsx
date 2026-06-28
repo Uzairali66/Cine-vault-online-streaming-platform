@@ -6,17 +6,7 @@ import SEO from '../components/SEO';
 import AdBanner from '../components/AdBanner';
 import PageLayout from '../components/layout/PageLayout';
 import PageHeader from '../components/layout/PageHeader';
-
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-
-const API_OPTIONS = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`,
-  },
-};
+import { tmdbFetch } from '../utils/tmdb';
 
 const MEDIA_TABS = [
   { value: 'movie', label: 'Movies' },
@@ -53,19 +43,18 @@ const YearPage = () => {
       setIsLoading(true);
       try {
         // Build primary + date filter. TV uses first_air_date_year.
-        const dateParam =
-          mediaType === 'movie'
-            ? `primary_release_year=${yearNum}`
-            : `first_air_date_year=${yearNum}`;
-
-        const endpoint = `${API_BASE_URL}/discover/${mediaType}`;
+        const dateKey =
+          mediaType === 'movie' ? 'primary_release_year' : 'first_air_date_year';
+        const baseParams = {
+          [dateKey]: yearNum,
+          sort_by: sortBy,
+          include_adult: false,
+          language: 'en-US',
+        };
 
         // Fetch 10 pages in parallel for maximum content.
         const promises = Array.from({ length: 10 }).map((_, i) =>
-          fetch(
-            `${endpoint}?${dateParam}&sort_by=${sortBy}&page=${i + 1}&include_adult=false&language=en-US`,
-            API_OPTIONS
-          ).then((r) => r.json())
+          tmdbFetch(`/discover/${mediaType}`, { ...baseParams, page: i + 1 })
         );
 
         const responses = await Promise.all(promises);

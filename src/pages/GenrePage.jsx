@@ -7,17 +7,7 @@ import AdBanner from '../components/AdBanner';
 import PageLayout from '../components/layout/PageLayout';
 import PageHeader from '../components/layout/PageHeader';
 import { ALL_GENRES } from '../utils/categories';
-
-const API_BASE_URL = 'https://api.themoviedb.org/3';
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-
-const API_OPTIONS = {
-  method: 'GET',
-  headers: {
-    accept: 'application/json',
-    Authorization: `Bearer ${API_KEY}`,
-  },
-};
+import { tmdbFetch } from '../utils/tmdb';
 
 const GENRES = ALL_GENRES;
 
@@ -47,14 +37,14 @@ const GenrePage = () => {
     const fetchByGenre = async () => {
       setIsLoading(true);
       try {
-        const endpoint = mediaType === 'movie'
-          ? `${API_BASE_URL}/discover/movie`
-          : `${API_BASE_URL}/discover/tv`;
-
         // Fetch 10 pages in parallel for maximum content
         const promises = Array.from({ length: 10 }).map((_, i) =>
-          fetch(`${endpoint}?with_genres=${genreId}&sort_by=${sortBy}&page=${i + 1}&include_adult=false`, API_OPTIONS)
-            .then(r => r.json())
+          tmdbFetch(`/discover/${mediaType}`, {
+            with_genres: genreId,
+            sort_by: sortBy,
+            page: i + 1,
+            include_adult: false,
+          })
         );
 
         const responses = await Promise.all(promises);
